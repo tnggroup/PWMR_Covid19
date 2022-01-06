@@ -1,0 +1,2081 @@
+---
+title: "Covid_MR_B2"
+author: "Alish Palmos"
+date: "16/09/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+```{r echo=FALSE}
+rm(list=ls())
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/")
+```
+
+```{r include=FALSE}
+library(data.table)
+library(jtools)
+library(knitr)
+library(broom)
+library(sandwich)
+library(tidyverse)
+library(ggplot2)
+library(sgof)
+library(TwoSampleMR)
+library(qvalue)
+library(kableExtra)
+```
+
+This RMarkdown shows the results from a MRWAS (Mendelian Randomization Wide Association Study). 
+
+All currently available GWAS summary statistics of inflammatory markers were amassed over the course a few months.  
+
+### Covid GWAS used in this study: 
+
+A2 from Release 5 (https://www.covid19hg.org/results/) 
+
+### Studies included can be found in the main manuscript 
+
+GSMR was used as the base MR method: https://www.nature.com/articles/s41467-017-02317-2 
+
+P-value threshold was set to 5E-6, due to lack of power in some GWAS. Thus, this study is exploratory. 
+
+Only comparisons where 1+ SNPs were in common between the exposure and the outcome were included. This is routine MR practice. 
+#Read in results from GSMR
+#SUN
+```{r echo=FALSE}
+
+#SUN
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr//output/")
+
+sun_mr <- list.files(pattern = "*.gsmr")
+
+sun_mr = lapply(sun_mr, read.delim)
+
+sun_mr <- do.call(rbind.data.frame, sun_mr)
+
+sun_mr <- sun_mr %>%
+  filter(nsnp >= 1)
+
+sun_mr$study <- "Sun"
+
+sun_mr$Exposure <- sub("^(.*)[.].*", "\\1",sun_mr$Exposure)
+sun_mr$Exposure <- sub("^(.*)[.].*", "\\1",sun_mr$Exposure)
+sun_mr$Exposure <- sub("^(.*)[.].*", "\\1",sun_mr$Exposure)
+sun_mr$Exposure <- sub("^(.*)[.].*", "\\1",sun_mr$Exposure)
+
+sun_mr$Outcome <- sub("^(.*)[.].*", "\\1",sun_mr$Outcome)
+sun_mr$Outcome <- sub("^(.*)[.].*", "\\1",sun_mr$Outcome)
+sun_mr$Outcome <- sub("^(.*)[.].*", "\\1",sun_mr$Outcome)
+sun_mr$Outcome <- sub("^(.*)[.].*", "\\1",sun_mr$Outcome)
+
+
+sun_n <- count(sun_mr)
+```
+
+#SUHRE
+
+```{r echo=FALSE}
+
+#SUHRE
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/suhr_mr/outputs/")
+
+suhre_mr <- list.files(pattern = "*.gsmr")
+
+suhre_mr = lapply(suhre_mr, read.delim)
+
+suhre_mr <- do.call(rbind.data.frame, suhre_mr)
+
+suhre_mr <- suhre_mr %>%
+  filter(nsnp >= 1)
+
+suhre_mr$study <- "Suhre"
+
+
+suhre_mr$Exposure <- gsub("\\..*","",suhre_mr$Exposure)
+suhre_mr$Exposure <- gsub("(.*)_.*", "\\1",suhre_mr$Exposure)
+suhre_mr$Exposure <- gsub("(.*)_.*", "\\1",suhre_mr$Exposure)
+suhre_mr$Exposure <- gsub("(.*)_.*", "\\1",suhre_mr$Exposure)
+suhre_mr$Exposure <- gsub("Suhre_Renamed/", "\\1",suhre_mr$Exposure)
+
+
+suhre_n <- count(suhre_mr)
+```
+
+#BRETH
+
+```{r echo=FALSE}
+#BRETH
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/output/")
+
+breth_mr <- list.files(pattern = "*.gsmr")
+
+breth_mr = lapply(breth_mr, read.delim)
+
+breth_mr <- do.call(rbind.data.frame, breth_mr)
+
+breth_mr <- breth_mr %>%
+  filter(nsnp >= 1)
+
+breth_mr$study <- "Breth"
+
+
+breth_n <- count(breth_mr)
+
+```
+
+#FOLK 
+
+```{r echo=FALSE}
+
+#FOLK 
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/folk_mr/output/")
+
+folk_mr <- list.files(pattern = "*.gsmr")
+
+folk_mr = lapply(folk_mr, read.delim)
+
+folk_mr <- do.call(rbind.data.frame, folk_mr)
+
+folk_mr <- folk_mr %>%
+  filter(nsnp >= 1)
+
+folk_mr$study <- "Folk"
+
+
+folk_n <- count(folk_mr)
+
+```
+
+#SLIZ 
+Sliz didn't yield any results 
+```{r echo=FALSE}
+
+#SLIZ 
+
+# setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sliz_mr/output/")
+# 
+# sliz_mr <- list.files(pattern = "*.gsmr")
+# 
+# sliz_mr = lapply(sliz_mr, read.delim)
+# 
+# sliz_mr <- do.call(rbind.data.frame, sliz_mr)
+# 
+# sliz_mr <- sliz_mr %>%
+#   filter(nsnp >= 1)
+# 
+# sliz_mr$study <- "Sliz"
+# 
+# 
+# sliz_n <- count(sliz_mr)
+
+```
+
+
+#WOOD
+
+```{r echo=FALSE}
+
+#WOOD
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/wood_mr/output/")
+
+wood_mr <- list.files(pattern = "*.gsmr")
+
+wood_mr = lapply(wood_mr, read.delim)
+
+wood_mr <- do.call(rbind.data.frame, wood_mr)
+
+wood_mr <- wood_mr %>%
+  filter(nsnp >= 1)
+
+wood_mr$study <- "Wood"
+
+
+wood_n <- count(wood_mr)
+
+```
+
+
+#AHOL 
+
+```{r echo=FALSE}
+
+#AHOL 
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/infl_mr/output/")
+
+ahol_mr <- list.files(pattern = "*.gsmr")
+
+ahol_mr = lapply(ahol_mr, read.delim)
+
+ahol_mr <- do.call(rbind.data.frame, ahol_mr)
+
+ahol_mr <- ahol_mr %>%
+  filter(nsnp >= 1)
+
+ahol_mr$study <- "Ahol"
+
+
+ahol_n <- count(ahol_mr)
+
+```
+
+#SCALLOP
+
+
+```{r echo=FALSE}
+
+#SCALLOP
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/scal_mr/output/")
+
+scal_mr <- list.files(pattern = "*.gsmr")
+
+scal_mr = lapply(scal_mr, read.delim)
+
+scal_mr <- do.call(rbind.data.frame, scal_mr)
+
+scal_mr <- scal_mr %>%
+  filter(nsnp >= 1)
+
+scal_mr$study <- "Scallop"
+
+
+scal_n <- count(scal_mr)
+
+```
+
+#HILL
+
+```{r echo=FALSE}
+
+#HILL
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/hill_mr/output/")
+
+hill_mr <- list.files(pattern = "*.gsmr")
+
+hill_mr = lapply(hill_mr, read.delim)
+
+hill_mr <- do.call(rbind.data.frame, hill_mr)
+
+hill_mr <- hill_mr %>%
+  filter(nsnp >= 1)
+
+hill_mr$study <- "Hill"
+
+
+hill_n <- count(hill_mr)
+
+```
+
+#HOGL
+
+```{r echo=FALSE}
+
+#HOGL
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/hogl_mr/output/")
+
+hogl_mr <- list.files(pattern = "*.gsmr")
+
+hogl_mr = lapply(hogl_mr, read.delim)
+
+hogl_mr <- do.call(rbind.data.frame, hogl_mr)
+
+
+hogl_mr <- hogl_mr %>%
+  filter(nsnp >= 1)
+
+hogl_mr$study <- "Hogl"
+
+
+hogl_n <- count(hogl_mr)
+
+```
+
+#ENROTH
+
+```{r echo=FALSE}
+
+##ENROTH
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/enroth_mr/output/")
+
+enroth_mr <- list.files(pattern = "*.gsmr")
+
+enroth_mr = lapply(enroth_mr, read.delim)
+
+enroth_mr <- do.call(rbind.data.frame, enroth_mr)
+
+
+enroth_mr <- enroth_mr %>%
+  filter(nsnp >= 1)
+
+enroth_mr$study <- "Enroth"
+
+
+enroth_n <- count(enroth_mr)
+
+```
+
+# Count up the number of analyses  
+
+```{r echo=FALSE}
+total_tests <- sum(ahol_n$n, breth_n$n, folk_n$n, scal_n$n, suhre_n$n, sun_n$n, wood_n$n, hill_n$n, hogl_n$n, enroth_n$n)
+
+print(total_tests)
+```
+
+# Combine all to count how many exposures we had as proteins
+```{r echo=FALSE}
+# combine all to count how many exposures and outcomes we had
+mr_df_all <- rbind(breth_mr, folk_mr, suhre_mr, sun_mr, wood_mr, ahol_mr, scal_mr, hill_mr, hogl_mr, enroth_mr)
+covid <- str_count(mr_df_all$Exposure, "Hospitalized_COVID")
+covid[is.na(covid)] <- 0
+sum(covid)
+```
+
+# Combine all to count how many outcomes we had as Covid
+```{r}
+markers <- mr_df_all[- grep("Hospitalized_COVID", mr_df_all$Exposure),]
+nrow(markers)
+```
+
+# Bind all data frames
+```{r}
+mr_df <- rbind(breth_mr, folk_mr, suhre_mr, sun_mr, wood_mr, ahol_mr, scal_mr, hill_mr, hogl_mr, enroth_mr)
+```
+
+# Combine full data, work out odds ratios and 95% CI
+```{r}
+mr_df_all  <-  mr_df
+
+mr_df_all$Beta_exponent <- exp(mr_df_all$bxy)
+mr_df_all$LCI <- mr_df_all$Beta_exponent - (mr_df_all$se * 1.96)
+mr_df_all$UCI <- mr_df_all$Beta_exponent + (mr_df_all$se * 1.96)
+
+mr_df_all$Exposure <- gsub(".txt", "",mr_df_all$Exposure)
+mr_df_all$Outcome <- gsub(".txt", "",mr_df_all$Outcome)
+```
+
+# Compute q-values and add them to the large combined data frame
+```{r}
+pvalues <- mr_df_all$p
+qobj <- qvalue(p = pvalues)
+lfdr <- qobj$lfdr
+summary(qobj)
+hist(qobj)
+plot(qobj)
+
+qvalues <- as.matrix(qobj$qvalues)
+mr_df_all$qvalue <- cbind(qvalues)
+```
+
+
+# Check adjusted p-values using SGoF method
+```{r}
+p <- SGoF(mr_df_all$p)
+summary(p)
+
+plot(p)
+```
+
+# Include adjusted p-values in the data frame & sorte them
+```{r}
+mr_df_all$p.adjust <- p.adjust(p = mr_df_all$p, method = "fdr")
+
+mr_df_all <- mr_df_all[order(mr_df_all$Exposure, +abs(mr_df_all$p) ), ]
+
+sorted <- mr_df_all[order(mr_df_all$p),]
+
+head(sorted, n = 15)
+```
+
+# All effects Covid outcome
+
+```{r}
+
+Covid_outcome <- mr_df_all[!grepl("Hospitalized", mr_df_all$Exposure),]
+
+  Covid_outcome %>%
+  kbl() %>%
+  kable_classic_2(full_width = F)
+
+```
+
+# All effects Covid exposure
+
+```{r}
+
+Covid_exposure <- mr_df_all[!grepl("Hospitalized", mr_df_all$Outcome),]
+
+  Covid_exposure %>%
+  kbl() %>%
+  kable_classic_2(full_width = F)
+
+```
+
+
+# Sort the main table 
+```{r}
+#filter by p-value
+mr_df_filtered <- sorted %>%
+  filter(qvalue < 0.05) 
+
+#rename headers
+mr_df_filtered <- mr_df_filtered %>%
+  rename(Beta = bxy, StandardError = se, Pvalue = p, SNPs = nsnp, LowerCI = LCI, UpperCI =  UCI, AdjustedPvalue = p.adjust)
+
+#take the log 
+mr_df_filtered <- mr_df_filtered %>% arrange(desc(Beta_exponent))
+     
+#rename markers to have study labels
+mr_df_filtered$Log_Beta <- log(mr_df_filtered$Beta_exponent) 
+mr_df_filtered$Log_LowerCI <- log(mr_df_filtered$LowerCI) 
+mr_df_filtered$Log_UpperCI <- log(mr_df_filtered$UpperCI) 
+
+# mr_df_filtered$Exposure <- make.names(mr_df_filtered$Exposure,unique=T)
+
+mr_df_filtered[1,] <- gsub("FAAH2", "FAAH2_Sun", mr_df_filtered[1,])
+mr_df_filtered[2,] <- gsub("GCNT4", "GCNT4_Sun",mr_df_filtered[2,])
+mr_df_filtered[4,] <- gsub("CD207", "CD207_Sun",mr_df_filtered[4,])
+mr_df_filtered[5,] <- gsub("RAB14", "RAB14_Sun",mr_df_filtered[5,])
+mr_df_filtered[6,] <- gsub("C1GALT1C1", "C1GALT1C1_Sun",mr_df_filtered[6,])
+mr_df_filtered[7,] <- gsub("ABO", "ABO_Sun",mr_df_filtered[7,])
+mr_df_filtered[8,] <- gsub("LCTL", "LCTL_Sun",mr_df_filtered[8,])
+mr_df_filtered[9,] <- gsub("SFTPD", "SFTPD_Breth",mr_df_filtered[9,])
+mr_df_filtered[10,] <- gsub("SELL", "SELL_Sun",mr_df_filtered[10,])
+mr_df_filtered[11,] <- gsub("SELE", "SELE_Folk",mr_df_filtered[11,])
+mr_df_filtered[12,] <- gsub("KEL", "KEL_Sun",mr_df_filtered[12,])
+mr_df_filtered[13,] <- gsub("SELE", "SELE_Scal",mr_df_filtered[13,])
+mr_df_filtered[14,] <- gsub("SELE", "SELE_Breth",mr_df_filtered[14,])
+mr_df_filtered[15,] <- gsub("ATP2A3", "ATP2A3_Sun",mr_df_filtered[15,])
+mr_df_filtered[16,] <- gsub("MIP1b.data.gz", "MIP1b_Ahol",mr_df_filtered[16,])
+mr_df_filtered[17,] <- gsub("PECAM-1", "PECAM1_Scal",mr_df_filtered[17,])
+
+#quick formatting
+mr_df_filtered$Beta_exponent <- as.numeric(mr_df_filtered$Beta_exponent)
+mr_df_filtered$LowerCI <- as.numeric(mr_df_filtered$LowerCI)
+mr_df_filtered$UpperCI <- as.numeric(mr_df_filtered$UpperCI)
+
+kable(mr_df_filtered)                                
+
+```
+
+# Effects of protein on Covid
+
+```{r fig.width=10, echo=FALSE}
+
+library(scales)
+
+mr_df_filtered <- mr_df_filtered[!grepl("Hospitalized_COVID", mr_df_filtered$Exposure),]
+
+p1 <- ggplot(mr_df_filtered, aes(x=reorder(as.factor(Exposure), Beta_exponent) , y=Beta_exponent)) + 
+    geom_boxplot(fill="slateblue") + coord_flip() + geom_errorbar(aes(ymax = UpperCI, ymin = LowerCI))+ ggtitle("Outcome - Hospitalized Covid-19") +
+  xlab("Exposure Variable") + ylab("Odds Ratio (95% Confidence Interval)")+ geom_hline(yintercept=0, linetype="dashed", color = "red") + ylim(0,1) + 
+  annotate('text', x = 6.8, y = 8.5, label='*', size=11) +
+  annotate('text', x = 5.8, y = 8.5, label='*', size=11) +
+  annotate('text', x = 4.8, y = 8.5, label='*', size=11) +
+  annotate('text', x = 2.8, y = 8.5, label='*', size=11) +
+  annotate('text', x = 1.8, y = 8.5, label='*', size=11) +
+  annotate('text', x = 0.8, y = 8.5, label='*', size=11) +
+  theme_bw() + theme(text=element_text(size=16, family="Arial"))  +
+    theme(panel.grid.major.x = element_line(size = 0.5,
+                                        linetype = 'dashed',
+                                        colour = "gray41"),
+        panel.grid.major.y = element_line(size = 0.1, 
+                                        linetype = 'solid', 
+                                        colour = "gray62")) +
+  scale_y_log10(breaks = c(0.5, 0.75, 1, 1.25, 1.5)) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip(clip = "off", ylim = c(0.5,1.5))
+  
+p1
+
+```
+
+
+# Effects of Covid on proteins
+
+```{r}
+#create the data frame 
+
+FAAH2 <- sun_mr[grep("FAAH2", sun_mr$Outcome),]
+GCNT4 <- sun_mr[grep("GCNT4", sun_mr$Outcome),]
+CD207 <- sun_mr[grep("CD207", sun_mr$Outcome),]
+RAB14 <- sun_mr[grep("RAB14", sun_mr$Outcome),]
+C1GALT1C1 <- sun_mr[grep("C1GALT1C1", sun_mr$Outcome),]
+ABO <- sun_mr[grep("ABO", sun_mr$Outcome),]
+LCTL <- sun_mr[grep("LCTL", sun_mr$Outcome),]
+SFTPD <- breth_mr[grep("SFTPD", breth_mr$Outcome),]
+SELL <- sun_mr[grep("SELL", sun_mr$Outcome),]
+SELE_1 <- folk_mr[grep("SELE", folk_mr$Outcome),]
+KEL <- sun_mr[grep("KEL", sun_mr$Outcome),]
+SELE_2 <- scal_mr[grep("SELE", scal_mr$Outcome),]
+SELE_3 <- breth_mr[grep("SELE", breth_mr$Outcome),]
+ATP2A3 <- sun_mr[grep("ATP2A3", sun_mr$Outcome),]
+PECAM_1 <- scal_mr[grep("PECAM-1", scal_mr$Outcome),]
+
+MIP1b <- ahol_mr[grep("MIP", ahol_mr$Exposure),]
+MIP1b$bxy <- as.numeric(MIP1b$bxy)
+MIP1b$se <- as.numeric(MIP1b$se)
+MIP1b$Beta_exponent <- exp(MIP1b$bxy)
+MIP1b$LCI <- MIP1b$Beta_exponent - (MIP1b$se * 1.96)
+MIP1b$UCI <- MIP1b$Beta_exponent + (MIP1b$se * 1.96)
+MIP1b$p.adjust <- p.adjust(p = MIP1b$p, method = "fdr")
+MIP1b_sorted <- MIP1b[order(MIP1b$p.adjust),]
+MIP1b_sorted$Log_Beta <- log(MIP1b_sorted$Beta_exponent) 
+MIP1b_sorted$Log_LowerCI <- log(MIP1b_sorted$LCI) 
+MIP1b_sorted$Log_UpperCI <- log(MIP1b_sorted$UCI) 
+kable(MIP1b_sorted)
+
+
+covid_exposure <- rbind(
+GCNT4 ,
+FAAH2 ,
+CD207 ,
+RAB14,
+C1GALT1C1, 
+ABO ,
+LCTL ,
+SFTPD ,
+SELL,
+SELE_1,
+KEL ,
+SELE_2, 
+SELE_3 ,
+ATP2A3 ,
+PECAM_1 
+)
+
+#rename according to study 
+covid_exposure[1,] <- gsub("GCNT4", "GCNT4_Sun",covid_exposure[1,])
+covid_exposure[2,] <- gsub("FAAH2", "FAAH2_Sun", covid_exposure[2,])
+covid_exposure[3,] <- gsub("CD207", "CD207_Sun",covid_exposure[3,])
+covid_exposure[4,] <- gsub("RAB14", "RAB14_Sun",covid_exposure[4,])
+covid_exposure[5,] <- gsub("C1GALT1C1", "C1GALT1C1_Sun",covid_exposure[5,])
+covid_exposure[6,] <- gsub("ABO", "ABO_Sun",covid_exposure[6,])
+covid_exposure[7,] <- gsub("LCTL", "LCTL_Sun",covid_exposure[7,])
+covid_exposure[8,] <- gsub("SFTPD", "SFTPD_Breth",covid_exposure[8,])
+covid_exposure[9,] <- gsub("SELL", "SELL_Sun",covid_exposure[9,])
+covid_exposure[10,] <- gsub("SELE", "SELE_Folk",covid_exposure[10,])
+covid_exposure[11,] <- gsub("KEL", "KEL_Sun",covid_exposure[11,])
+covid_exposure[12,] <- gsub("SELE.txt", "SELE_Scal",covid_exposure[12,])
+covid_exposure[13,] <- gsub("SELE", "SELE_Breth",covid_exposure[13,])
+covid_exposure[14,] <- gsub("ATP2A3", "ATP2A3_Sun",covid_exposure[14,])
+covid_exposure[15,] <- gsub("PECAM-1.txt", "PECAM1_Scal",covid_exposure[15,])
+
+#quick formatting
+covid_exposure$bxy <- as.numeric(covid_exposure$bxy)
+covid_exposure$se <- as.numeric(covid_exposure$se)
+
+#include OR and CI
+covid_exposure$Beta_exponent <- exp(covid_exposure$bxy)
+covid_exposure$LCI <- covid_exposure$Beta_exponent - (covid_exposure$se * 1.96)
+covid_exposure$UCI <- covid_exposure$Beta_exponent + (covid_exposure$se * 1.96)
+
+#include adjusted p-values
+covid_exposure$p.adjust <- p.adjust(p = covid_exposure$p, method = "fdr")
+
+#sort
+covid_exposure_sorted <- covid_exposure[order(covid_exposure$p.adjust),]
+
+#add log
+covid_exposure_sorted$Log_Beta <- log(covid_exposure_sorted$Beta_exponent) 
+covid_exposure_sorted$Log_LowerCI <- log(covid_exposure_sorted$LCI) 
+covid_exposure_sorted$Log_UpperCI <- log(covid_exposure_sorted$UCI) 
+
+kable(covid_exposure_sorted)
+
+```
+
+
+```{r fig.width=10}
+p2 <- ggplot(covid_exposure_sorted, aes(x=reorder(as.factor(Outcome), Beta_exponent) , y=Beta_exponent)) + 
+    geom_boxplot(fill="slateblue") + coord_flip() + geom_errorbar(aes(ymax = UCI, ymin = LCI))+ ggtitle("Exposure - Hospitalized Covid-19") +
+  xlab("Outcome Variable") + ylab("Odds Ratio (95% Confidence Interval)")+ geom_hline(yintercept=0, linetype="dashed", color = "red") + ylim(0,1) + 
+  theme_bw() + theme(text=element_text(size=16, family="Arial")) + 
+    theme(panel.grid.major.x = element_line(size = 0.5,
+                                        linetype = 'dashed',
+                                        colour = "gray41"),
+        panel.grid.major.y = element_line(size = 0.1, 
+                                        linetype = 'solid', 
+                                        colour = "gray62")) +
+  scale_y_log10(breaks = c(0.5, 0.75, 1, 1.25, 1.5)) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  coord_flip(clip = "off", ylim = c(0.5,1.5))
+
+p2
+```
+
+# Create cow-plot
+
+```{r fig.height=7, fig.width=10}
+
+library(ggpubr)
+
+figure <- ggarrange(p1, p2,
+                    labels = c("A", "B"),
+                    ncol = 1, nrow = 2)
+figure
+
+ggsave(path = "/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/", plot = figure, filename = "Figure1", device='tiff', dpi=700)
+
+```
+
+
+#GSMR - get SNP info / figures / effects
+functions to get SNP infro from GSMR
+```{r GSMR fucntions for creating figures, no need to take note of this}
+
+# ************************************************** #
+#              Read exposure and outcome             #
+# ************************************************** #
+read_gsmr_trait = function(file_con) {
+    expo_str = scan(file_con, nlines=1, quiet=TRUE, what="");
+    outcome_str = scan(file_con, nlines=1, quiet=TRUE, what="");
+    strbuf = scan(file_con, nlines=1, quiet=TRUE, what="");
+    return(list(expo_str=expo_str, outcome_str=outcome_str))
+}
+
+# ************************************************** #
+#                  Read GSMR result                  #
+# ************************************************** #
+read_gsmr_result = function(file_con) {
+    expo_str = outcome_str = bxy = bxy_se = bxy_pval = bxy_m = c()
+    while(1) {
+        strbuf = scan(file_con, nlines=1, quiet=TRUE, what="");
+        if(strbuf[1] == "#gsmr_end") break;
+        if(strbuf[1] == "Exposure") next;
+        expo_str = c(expo_str, strbuf[1]);
+        outcome_str = c(outcome_str, strbuf[2]);
+        bxy = c(bxy, as.numeric(strbuf[3]));
+        bxy_se = c(bxy_se, as.numeric(strbuf[4]));
+        bxy_pval = c(bxy_pval, as.numeric(strbuf[5]));
+        bxy_m = c(bxy_m, as.numeric(strbuf[6]));
+    }
+    return(cbind(expo_str, outcome_str, bxy, bxy_se, bxy_pval, bxy_m))
+}
+
+# ************************************************** #
+#                  Read SNP effects                  #
+# ************************************************** #
+read_snp_effect = function(file_con) {
+    snp_effect = c()
+    while(1) {
+        strbuf = scan(file_con, nlines=1, quiet=TRUE, what="");
+        if(strbuf[1] == "#effect_end") break;
+        snp_effect = rbind(snp_effect, strbuf);
+        print(length(strbuf))
+        if(length(strbuf)<14) print(strbuf)
+    }
+    return(snp_effect)
+}
+
+# ************************************************** #
+#                  Read SNP instruments              #
+# ************************************************** #
+read_snp_instru = function(file_con, snplist, nexpo, noutcome) {
+    nrow = length(snplist); ncol = nexpo+noutcome
+    snp_instru = matrix(NA, nrow, ncol)
+    while(1) {
+        strbuf = scan(file_con, nlines=1, quiet=TRUE, what="");
+        if(strbuf[1] == "#marker_end") break;
+        expo_indx = as.numeric(strbuf[1]); outcome_indx = as.numeric(strbuf[2]);
+        forward_flag = TRUE;
+        if(expo_indx < outcome_indx) {
+            outcome_indx = outcome_indx - nexpo
+        } else {
+            expo_indx = expo_indx - nexpo
+            forward_flag = FALSE;
+        }
+        snpbuf = scan(file_con, nlines=1, quiet=TRUE, what="");
+        snp_indx = match(snpbuf, snplist)
+        posbuf = rep(0, nrow); posbuf[snp_indx] = 1;
+        indxbuf = expo_indx
+        if(!forward_flag) indxbuf = indxbuf + nexpo
+        if(length(which(!is.na(snp_instru[,indxbuf])))==0) {
+            snp_instru[,indxbuf] = posbuf;
+        } else {
+            snp_instru[,indxbuf] = paste(snp_instru[,indxbuf], posbuf, sep="")
+        }
+    }
+    return(snp_instru)
+}
+
+# ************************************************** #
+#          Read output by GCTA-GSMR for plot         #
+# ************************************************** #
+read_gsmr_data = function(gsmr_effect_file) {
+    trait_flag = gsmr_flag = marker_flag = effect_flag = FALSE;
+    file_con = file(gsmr_effect_file, "r")
+    while(1) {
+        strbuf = scan(file_con, nlines=1, quiet=TRUE, what="");
+        if(strbuf == "#trait_begin") {
+            # Read the exposures and outcomes
+            resbuf = read_gsmr_trait(file_con);
+            expo_str = resbuf$expo_str; 
+            outcome_str = resbuf$outcome_str;
+            pheno_str = c(expo_str, outcome_str);
+            nexpo = length(expo_str); noutcome = length(outcome_str)
+            trait_flag = TRUE;
+        } else if(strbuf == "#gsmr_begin") {
+            # Read the GSMR result
+            bxy_result = read_gsmr_result(file_con);
+            colnames(bxy_result) = c("Exposure", "Outcome", "bxy", "se", "p", "n_snps")
+            gsmr_flag = TRUE;
+        } else if(strbuf == "#effect_begin") {
+            # Read the summary statistics
+            snp_effect = read_snp_effect(file_con);
+            snplist = as.character(snp_effect[,1])
+            effect_flag = TRUE;
+        } else if(strbuf == "#marker_begin") {
+            # Read the SNPs
+            snp_instru = read_snp_instru(file_con, snplist, nexpo, noutcome);
+            snp_effect = cbind(snp_effect[,1], snp_instru, snp_effect[,-1])
+            marker_flag = TRUE;
+        }
+        if(trait_flag==T & gsmr_flag==T & marker_flag==T & effect_flag==T) break;
+    }
+    return(list(pheno=c(nexpo, noutcome, pheno_str), bxy_result=bxy_result, snp_effect = snp_effect))
+}
+
+# ************************************************** #
+#         Display summary of the gsmr data           #
+# ************************************************** #
+gsmr_summary = function(gsmr_data) {
+    message("\n## Exposure and outcome")
+    pheno_str = gsmr_data$pheno[c(-1,-2)]
+    # exposure
+    nexpo = as.numeric(gsmr_data$pheno[1]);
+    noutcome = as.numeric(gsmr_data$pheno[2]);
+    logger_m = paste(nexpo, "exposure(s):");
+    logger_m = paste(logger_m, gsmr_data$pheno[3])
+    if(nexpo > 1) {
+        for(i in 2 : nexpo) 
+            logger_m = paste(logger_m, gsmr_data$pheno[i+2], sep=", ")
+    } 
+    message(logger_m)
+    # outcome
+    logger_m = paste(noutcome, "outcome(s):");
+    logger_m = paste(logger_m, gsmr_data$pheno[3+nexpo])
+    if(noutcome > 1) {
+        for(i in 2 : noutcome) 
+            logger_m = paste(logger_m, gsmr_data$pheno[i+2+nexpo], sep=", ")
+    } 
+    message(logger_m)
+
+    message("\n## GSMR result")
+    m_bxy_rst = data.frame(gsmr_data$bxy_result)
+    print(m_bxy_rst)
+}
+
+
+# ************************************************** #
+#               Retrieve SNP effects                 #
+# ************************************************** #
+gsmr_snp_effect = function(gsmr_data, expo_str, outcome_str) {
+   # index of SNP instruments
+    pheno_str = as.character(gsmr_data$pheno[c(-1,-2)])
+    nexpo = as.numeric(gsmr_data$pheno[1])
+    noutcome = as.numeric(gsmr_data$pheno[2])
+    expo_indx = match(expo_str, pheno_str)
+    if(is.na(expo_indx)) stop("\"", expo_str, "\" is not found.")
+    outcome_indx = match(outcome_str, pheno_str)
+    if(is.na(outcome_indx)) stop("\"", outcome_str, "\" is not found.")
+    forward_flag = TRUE;
+    if(expo_indx > outcome_indx) forward_flag = FALSE;
+    if(forward_flag) {
+        outcome_indx = outcome_indx - nexpo;
+    } else {
+        expo_indx = expo_indx - nexpo;
+    }
+    indxbuf = expo_indx + 1
+    if(!forward_flag) indxbuf = indxbuf + nexpo
+    strbuf = as.character(substr(gsmr_data$snp_effect[,indxbuf], outcome_indx, outcome_indx))
+    snpindx = which(strbuf=="1")
+    if(length(snpindx) < 1) stop("Not enough SNPs retained.")
+    # bxy
+    indxbuf = which(gsmr_data$bxy_result[,1]==expo_str & gsmr_data$bxy_result[,2]==outcome_str)
+    bxy = as.numeric(gsmr_data$bxy_result[indxbuf, 3])
+    # SNP effects
+    if(forward_flag) {
+        indxbuf1 = 1 + nexpo + noutcome + 3 + (expo_indx-1)*2 + 1
+        indxbuf2 = 1 + nexpo + noutcome + 3 + nexpo*2 + (outcome_indx-1)*2 + 1
+    } else {
+        indxbuf1 = 1 + nexpo + noutcome + 3 + nexpo*2 + (expo_indx-1)*2 + 1
+        indxbuf2 = 1 + nexpo + noutcome + 3 + (outcome_indx-1)*2 + 1
+    }
+    snpid = as.character(gsmr_data$snp_effect[snpindx,1])
+    bzx = as.numeric(gsmr_data$snp_effect[snpindx,indxbuf1]); indxbuf1 = indxbuf1 + 1;
+    bzx_se = as.numeric(gsmr_data$snp_effect[snpindx,indxbuf1]);
+    bzx_pval = pchisq((bzx/bzx_se)^2, 1, lower.tail=F);
+    bzy = as.numeric(gsmr_data$snp_effect[snpindx,indxbuf2]); indxbuf2 = indxbuf2 + 1;
+    bzy_se = as.numeric(gsmr_data$snp_effect[snpindx,indxbuf2]);
+    bzy_pval = pchisq((bzy/bzy_se)^2, 1, lower.tail=F);
+    return(list(snp=snpid, bxy=bxy, bzx=bzx, bzx_se=bzx_se, bzx_pval=bzx_pval, bzy=bzy, bzy_se=bzy_se, bzy_pval=bzy_pval))
+}
+
+# ************************************************** #
+#                  Plot bzy vs bzx                   #
+# ************************************************** #
+plot_snp_effect = function(expo_str, outcome_str, bxy, bzx, bzx_se, bzy, bzy_se, effect_col=colors()[75]) {
+    vals = c(bzx-bzx_se, bzx+bzx_se)
+    xmin = min(vals); xmax = max(vals)
+    vals = c(bzy-bzy_se, bzy+bzy_se)
+    ymin = min(vals); ymax = max(vals)
+    plot(bzx, bzy, pch=20, cex=0.8, bty="n", cex.axis=1.1, cex.lab=1.2,
+         col=effect_col, xlim=c(xmin, xmax), ylim=c(ymin, ymax),
+         xlab=substitute(paste(trait, " (", italic(b[zx]), ")", sep=""), list(trait=expo_str)),
+         ylab=substitute(paste(trait, " (", italic(b[zy]), ")", sep=""), list(trait=outcome_str)))
+    if(!is.na(bxy)) abline(0, bxy, lwd=1.5, lty=2, col="dim grey")
+    ## Standard errors
+    nsnps = length(bzx)
+    for( i in 1:nsnps ) {
+        # x axis
+        xstart = bzx[i] - bzx_se[i]; xend = bzx[i] + bzx_se[i]
+        ystart = bzy[i]; yend = bzy[i]
+        segments(xstart, ystart, xend, yend, lwd=1.5, col=effect_col)
+        # y axis
+        xstart = bzx[i]; xend = bzx[i] 
+        ystart = bzy[i] - bzy_se[i]; yend = bzy[i] + bzy_se[i]
+        segments(xstart, ystart, xend, yend, lwd=1.5, col=effect_col)
+    }
+}
+
+# ************************************************** #
+#             Plot bzy_pval vs bzx_pval              #
+# ************************************************** #
+plot_snp_pval = function(expo_str, outcome_str, bzx_pval, bzy_pval, gwas_thresh, truncation, effect_col) {
+    eps = 1e-300; truncation = -log10(truncation);
+    if(truncation > 300) {
+        warning("The minimal truncated p-value would be 1e-300.")
+        truncation = 300
+    }
+    bzx_pval = -log10(bzx_pval + eps);
+    bzy_pval = -log10(bzy_pval + eps);
+    pval = c(bzx_pval, bzy_pval)
+    min_val = 0; max_val = max(pval);
+    max_val = ifelse(max_val > truncation, truncation, max_val)
+    gwas_thresh = -log10(gwas_thresh);
+    plot(bzx_pval, bzy_pval, pch=20, cex=0.8, bty="n", cex.axis=1.1, cex.lab=1.2,
+         col=effect_col, xlim=c(min_val, max_val), ylim=c(min_val, max_val),
+         xlab=substitute(paste(trait, " (", -log[10], italic(P)[zx], ")", sep=""), list(trait=expo_str)),
+         ylab=substitute(paste(trait, " (", -log[10], italic(P[zy]), ")", sep=""), list(trait=outcome_str)))
+    abline(h=gwas_thresh, lty=2, lwd=1.5, col="maroon")
+}
+
+# ************************************************** #
+#                Plot bxy vs bzx_pval                #
+# ************************************************** #
+plot_snp_bxy = function(expo_str, outcome_str, bxy, bzx_pval, effect_col) {
+    eps = 1e-300;
+    bzx_pval = -log10(bzx_pval + eps);
+    xmin = min(bxy, na.rm=T); xmax = max(bxy, na.rm=T)
+    ymin = min(bzx_pval); ymax = max(bzx_pval);
+    plot(bxy, bzx_pval, pch=20, cex=0.8, bty="n", cex.axis=1.1, cex.lab=1.2,
+         col=effect_col, xlim=c(xmin, xmax), ylim=c(ymin, ymax),
+         xlab=substitute(paste(italic(hat(b)[xy]), " (", trait1, " -> ", trait2, ")", sep=""), list(trait1=expo_str, trait2=outcome_str)),
+         ylab=substitute(paste(trait, " (", -log[10], italic(P[zx]), ")", sep=""), list(trait=expo_str)))
+}
+
+# ************************************************** #
+#                  Effect size plot                  #
+# ************************************************** #
+# expo_str, exposure
+# outcome_str, outcome
+# effect_col, plotting colour
+plot_gsmr_effect = function(gsmr_data, expo_str, outcome_str, effect_col=colors()[75]) {
+    resbuf = gsmr_snp_effect(gsmr_data, expo_str, outcome_str);
+    bxy = resbuf$bxy
+    bzx = resbuf$bzx; bzx_se = resbuf$bzx_se;
+    bzy = resbuf$bzy; bzy_se = resbuf$bzy_se;
+    # plot
+    plot_snp_effect(expo_str, outcome_str, bxy, bzx, bzx_se, bzy, bzy_se, effect_col)
+}
+
+# ************************************************** #
+#                    P-value plot                    #
+# ************************************************** #
+# expo_str, exposure
+# outcome_str, outcome
+# effect_col, plotting colour
+plot_gsmr_pvalue = function(gsmr_data, expo_str, outcome_str, gwas_thresh=5e-8, truncation=1e-50, effect_col=colors()[75]) {
+    resbuf = gsmr_snp_effect(gsmr_data, expo_str, outcome_str);
+    bzx_pval = resbuf$bzx_pval; bzy_pval = resbuf$bzy_pval;
+    # plot
+    plot_snp_pval(expo_str, outcome_str, bzx_pval, bzy_pval, gwas_thresh, truncation, effect_col)
+}
+
+# ************************************************** #
+#                     bxy distribution plot                         #
+# ************************************************** #
+
+# expo_str, exposure
+# outcome_str, outcome
+# effect_col, plotting colour
+plot_bxy_distribution = function(gsmr_data, expo_str, outcome_str, effect_col=colors()[75]) {
+    resbuf = gsmr_snp_effect(gsmr_data, expo_str, outcome_str);
+    bzx = resbuf$bzx; bzx_pval = resbuf$bzx_pval;
+    bzy = resbuf$bzy; 
+    bxy = bzy/bzx
+    # plot
+    plot_snp_bxy(expo_str, outcome_str, bxy, bzx_pval, effect_col)
+}
+
+```
+
+### GSMR results
+
+```{r}
+#read in results
+FAAH2 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1010.txt.gsmr", verbose = T, data.table = F)
+GCNT4 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1187.txt.gsmr", verbose = T, data.table = F)
+CD207 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0426.txt.gsmr", verbose = T, data.table = F)
+RAB14 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN2468.txt.gsmr", verbose = T, data.table = F)
+C1GALT1C1 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0294.txt.gsmr", verbose = T, data.table = F)
+ABO <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0010.txt.gsmr", verbose = T, data.table = F)
+LCTL <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1711.txt.gsmr", verbose = T, data.table = F)
+SFTPD <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/output/BRM181.txt.gsmr", verbose = T, data.table = F)
+SELL <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN2663.txt.gsmr", verbose = T, data.table = F)
+SELE_1 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/folk_mr/output/SELE.txt.gsmr", verbose = T, data.table = F)
+KEL <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1620.txt.gsmr", verbose = T, data.table = F)
+SELE_2 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/scal_mr/output/SELE.txt.gsmr", verbose = T, data.table = F)
+SELE_3 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/output/BRM189.txt.gsmr", verbose = T, data.table = F)
+ATP2A3 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0201.txt.gsmr", verbose = T, data.table = F)
+PECAM_1 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/scal_mr/output/PECAM-1.txt.gsmr", verbose = T, data.table = F)
+
+#get SNP data
+kable(FAAH2)
+FAAH2_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1010.txt.eff_plot.gz")
+plot_gsmr_effect(FAAH2_chart, "FAAH2.8396.42.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(FAAH2_chart, "FAAH2.8396.42.3", "Hospitalized_COVID") %>%
+  kable()
+
+kable(GCNT4)
+GCNT4_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1187.txt.eff_plot.gz")
+plot_gsmr_effect(GCNT4_chart, "GCNT4.10842.7.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(GCNT4_chart, "GCNT4.10842.7.3", "Hospitalized_COVID") %>%
+  kable()
+
+kable(CD207)
+CD207_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0426.txt.eff_plot.gz")
+plot_gsmr_effect(CD207_chart, "CD207.3361.26.2", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(CD207_chart, "CD207.3361.26.2", "Hospitalized_COVID") %>%
+  kable()
+
+kable(RAB14)
+RAB14_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN2468.txt.eff_plot.gz")
+plot_gsmr_effect(RAB14_chart, "RAB14.14283.12.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(RAB14_chart, "RAB14.14283.12.3", "Hospitalized_COVID") %>%
+  kable()
+
+kable(C1GALT1C1)
+C1GALT1C1_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0294.txt.eff_plot.gz")
+plot_gsmr_effect(C1GALT1C1_chart, "C1GALT1C1.5735.54.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(C1GALT1C1_chart, "C1GALT1C1.5735.54.3", "Hospitalized_COVID") %>%
+  kable()
+
+
+kable(ABO)
+ABO_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0010.txt.eff_plot.gz")
+plot_gsmr_effect(ABO_chart, "ABO.9253.52.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(ABO_chart, "ABO.9253.52.3", "Hospitalized_COVID") %>%
+  kable()
+
+kable(LCTL)
+LCTL_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1711.txt.eff_plot.gz")
+plot_gsmr_effect(LCTL_chart, "LCTL.10890.135.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(LCTL_chart, "LCTL.10890.135.3", "Hospitalized_COVID") %>%
+  kable()
+
+kable(SFTPD)
+SFTPD_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/output/BRM181.txt.eff_plot.gz")
+plot_gsmr_effect(SFTPD_chart, "SFTPD", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(SFTPD_chart, "SFTPD", "Hospitalized_COVID") %>%
+  kable()
+
+kable(SELL)
+SELL_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN2663.txt.eff_plot.gz")
+plot_gsmr_effect(SELL_chart, "SELL.4831.4.2", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(SELL_chart, "SELL.4831.4.2", "Hospitalized_COVID") %>%
+  kable()
+
+kable(SELE_1)
+SELE_1_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/folk_mr/output/SELE.txt.eff_plot.gz")
+plot_gsmr_effect(SELE_1_chart, "SELE", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(SELE_1_chart, "SELE", "Hospitalized_COVID") %>%
+  kable()
+
+kable(KEL)
+KEL_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN1620.txt.eff_plot.gz")
+plot_gsmr_effect(KEL_chart, "KEL.7070.25.4", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(KEL_chart, "KEL.7070.25.4", "Hospitalized_COVID") %>%
+  kable()
+
+kable(SELE_2)
+SELE_2_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/scal_mr/output/SELE.txt.eff_plot.gz")
+plot_gsmr_effect(SELE_2_chart, "SELE.txt", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(SELE_2_chart, "SELE.txt", "Hospitalized_COVID") %>%
+  kable()
+
+kable(SELE_3)
+SELE_3_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/output/BRM189.txt.eff_plot.gz")
+plot_gsmr_effect(SELE_3_chart, "SELE", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(SELE_3_chart, "SELE", "Hospitalized_COVID") %>%
+  kable()
+
+
+kable(ATP2A3)
+ATP2A3_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/sun_mr/output/SUN0201.txt.eff_plot.gz")
+plot_gsmr_effect(ATP2A3_chart, "ATP2A3.13510.7.3", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(ATP2A3_chart, "ATP2A3.13510.7.3", "Hospitalized_COVID") %>%
+  kable()
+
+
+kable(PECAM_1)
+PECAM_1_chart = read_gsmr_data("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/scal_mr/output/PECAM-1.txt.eff_plot.gz")
+plot_gsmr_effect(PECAM_1_chart, "PECAM-1.txt", "Hospitalized_COVID", colors()[75])  
+gsmr_snp_effect(PECAM_1_chart, "PECAM-1.txt", "Hospitalized_COVID") %>%
+  kable()
+```
+
+# Sensitivity analyses using TwoSampleMR
+
+```{r eval=FALSE, include=FALSE}
+
+# Read in the original GWAS files & matching SNPs between the anlaysis files and the original GWAS files
+FAAH2 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN1010.gz", verbose = T, data.table = F, fill=TRUE)
+FAAH2 <-  inner_join(FAAH2_snps, FAAH2)
+
+GCNT4 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN1187.gz", verbose = T, data.table = F, fill=TRUE)
+GCNT4 <-  inner_join(GCNT_snps, GCNT4)
+
+CD207 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN0426.gz", verbose = T, data.table = F, fill=TRUE)
+CD207 <-  inner_join(CD207_snps, CD207)
+
+RAB14 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN2468.gz", verbose = T, data.table = F, fill=TRUE)
+RAB14 <-  inner_join(RAB14_snps, RAB14)
+
+C1GALT1C1 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN0294.gz", verbose = T, data.table = F, fill=TRUE)
+C1GALT1C1 <-  inner_join(C1GALT1C1_snps, C1GALT1C1)
+
+ABO <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN0010.gz", verbose = T, data.table = F, fill=TRUE)
+ABO <-  inner_join(ABO_snps, ABO)
+
+LCTL <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN1711.gz", verbose = T, data.table = F, fill=TRUE)
+LCTL <-  inner_join(LCTL_snps, LCTL)
+
+SFTPD <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/BRM181.txt", verbose = T, data.table = F, fill=TRUE)
+SFTPD <-  inner_join(SFTPD_snps, SFTPD)
+
+SELL <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN2663.gz", verbose = T, data.table = F, fill=TRUE)
+SELL <-  inner_join(SELL_snps, SELL)
+
+SELE_1 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/FOLK07.gz", verbose = T, data.table = F, fill=TRUE)
+SELE_1 <-  inner_join(SELE_1_snps, SELE_1)
+
+KEL <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN1620.gz", verbose = T, data.table = F, fill=TRUE)
+KEL <-  inner_join(KEL_snps, KEL)
+
+SELE_2 <- fread("/scratch/groups/ukbiobank/usr/alish/Project2_inflammatory_MR/markers/Scallop/SCAL62.gz", verbose = T, data.table = F, fill=TRUE)
+SELE_2 <-  inner_join(SELE_2_snps, SELE_2)
+
+SELE_3 <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/BRM189.txt", verbose = T, data.table = F, fill=TRUE)
+SELE_3 <-  inner_join(SELE_3_snps, SELE_3)
+
+ATP2A3 <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN0201.gz", verbose = T, data.table = F, fill=TRUE)
+ATP2A3 <-  inner_join(ATP2A3_snps, ATP2A3)
+
+PECAM_1 <- fread("/scratch/groups/ukbiobank/usr/alish/Project2_inflammatory_MR/markers/Scallop/SCAL87.gz", verbose = T, data.table = F, fill=TRUE)
+PECAM_1 <-  inner_join(PECAM_1_snps, PECAM_1)
+
+Severe_Covid <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/B2_all")
+
+library(TwoSampleMR)
+
+# Make the columns as follows:
+# SNP                 
+# beta                
+# SE                 
+# effect_allele      
+# non-effective allele 
+# p-value            
+# effect_allele freq 
+
+# let's choose the columns we need
+
+FAAH2 <- FAAH2 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+GCNT4 <- GCNT4 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+CD207 <- CD207 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+RAB14 <- RAB14 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+C1GALT1C1 <- C1GALT1C1 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+ABO <- ABO %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+LCTL <- LCTL %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+SFTPD <- SFTPD %>%
+  select(SNP, BETA = Beta, SE, A1, A2, P, MAF = FREQ)
+
+SELL <- SELL %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+SFTPD <- SFTPD %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+SELL <- SELL %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+SELE_1 <- SELE_1 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+KEL <- KEL %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+SELE_2 <- SELE_2 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+SELE_3 <- SELE_3 %>%
+  select(SNP, BETA = Beta, SE, A1, A2, P, MAF = FREQ)
+
+PECAM_1 <- PECAM_1 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+ATP2A3 <- ATP2A3 %>%
+  select(SNP, BETA, SE, A1, A2, P, MAF)
+
+Severe_Covid <- Severe_Covid %>%
+  select(SNP = rsid, BETA = all_inv_var_meta_beta, SE = all_inv_var_meta_sebeta, A1 = ALT, A2 = REF, P = all_inv_var_meta_p, MAF = all_meta_AF)
+
+
+#write these as tables, as they will be imported using custom functions
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/")
+
+write.table(FAAH2, "FAAH2", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(GCNT4, "GCNT4", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(CD207, "CD207", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(RAB14, "RAB14", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(C1GALT1C1, "C1GALT1C1", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(ABO, "ABO", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(LCTL, "LCTL", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SFTPD, "SFTPD", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SELL, "SELL", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SELE_1, "SELE_1", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(KEL, "KEL", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SELE_2, "SELE_2", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SELE_3, "SELE_3", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(ATP2A3, "ATP2A3", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(PECAM_1, "PECAM_1", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(Severe_Covid, "Severe_Covid", col.names=T, row.names=F, quote=F,sep = "\t")
+
+```
+
+# TwoSampleMR data
+```{r}
+
+# lets load TwoSampleMR and import the data (note that we are importing all the exposures and all the outcomes)
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/")
+
+exposure_FAAH2_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/FAAH2", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_FAAH2_dat$exposure="FAAH2"
+
+exposure_GCNT4_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/GCNT4", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_GCNT4_dat$exposure="GCNT4"
+
+exposure_CD207_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/CD207", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_CD207_dat$exposure="CD207"
+
+exposure_RAB14_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/RAB14", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_RAB14_dat$exposure="RAB14"
+
+exposure_C1GALT1C1_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/C1GALT1C1", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_C1GALT1C1_dat$exposure="C1GALT1C1"
+
+exposure_ABO_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/ABO", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_ABO_dat$exposure="ABO"
+
+exposure_LCTL_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/LCTL", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_LCTL_dat$exposure="LCTL"
+
+exposure_SFTPD_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SFTPD", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SFTPD_dat$exposure="SFTPD"
+
+exposure_SELL_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SELL", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SELL_dat$exposure="SELL"
+
+exposure_SELE_1_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SELE_1", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SELE_1_dat$exposure="SELE"
+
+exposure_KEL_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/KEL", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_KEL_dat$exposure="KEL"
+
+exposure_SELE_2_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SELE_2", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SELE_2_dat$exposure="SELE"
+
+exposure_SELE_3_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SELE_3", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SELE_3_dat$exposure="SELE"
+
+exposure_ATP2A3_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/ATP2A3", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_ATP2A3_dat$exposure="ATP2A3"
+
+exposure_PECAM_1_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/PECAM_1", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_PECAM_1_dat$exposure="PECAM_1"
+
+outcome_Severe_Covid_dat <- read_outcome_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/Severe_Covid", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+outcome_Severe_Covid_dat$outcome="Severe_Covid"
+
+
+
+# Harmonisation of SNP instruments between exposures and outcomes 
+# all exposures -> covid
+dataMR_FAAH2toCovid <- harmonise_data(exposure_dat = exposure_FAAH2_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_GCNT4toCovid <- harmonise_data(exposure_dat = exposure_GCNT4_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_CD207toCovid <- harmonise_data(exposure_dat = exposure_CD207_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_RAB14toCovid <- harmonise_data(exposure_dat = exposure_RAB14_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_C1GALT1C1toCovid <- harmonise_data(exposure_dat = exposure_C1GALT1C1_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_ABOtoCovid <- harmonise_data(exposure_dat = exposure_ABO_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_LCTLtoCovid <- harmonise_data(exposure_dat = exposure_LCTL_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_SFTPDtoCovid <- harmonise_data(exposure_dat = exposure_SFTPD_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_SELLtoCovid <- harmonise_data(exposure_dat = exposure_SELL_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_SELE_1toCovid <- harmonise_data(exposure_dat = exposure_SELE_1_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_KELtoCovid <- harmonise_data(exposure_dat = exposure_KEL_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_SELE_2toCovid <- harmonise_data(exposure_dat = exposure_SELE_2_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_SELE_3toCovid <- harmonise_data(exposure_dat = exposure_SELE_3_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_ATP2A3toCovid <- harmonise_data(exposure_dat = exposure_ATP2A3_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_PECAM_1toCovid <- harmonise_data(exposure_dat = exposure_PECAM_1_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+
+# get the data ready 
+# all exposures -> Covid
+dataMR_FAAH2toCovid_keep=subset(dataMR_FAAH2toCovid, mr_keep==TRUE)
+dataMR_GCNT4toCovid_keep=subset(dataMR_GCNT4toCovid, mr_keep==TRUE)
+dataMR_CD207toCovid_keep=subset(dataMR_CD207toCovid, mr_keep==TRUE)
+dataMR_RAB14toCovid_keep=subset(dataMR_RAB14toCovid, mr_keep==TRUE)
+dataMR_C1GALT1C1toCovid_keep=subset(dataMR_C1GALT1C1toCovid, mr_keep==TRUE)
+dataMR_ABOtoCovid_keep=subset(dataMR_ABOtoCovid, mr_keep==TRUE)
+dataMR_LCTLtoCovid_keep=subset(dataMR_LCTLtoCovid, mr_keep==TRUE)
+dataMR_SFTPDtoCovid_keep=subset(dataMR_SFTPDtoCovid, mr_keep==TRUE)
+dataMR_SELLtoCovid_keep=subset(dataMR_SELLtoCovid, mr_keep==TRUE)
+dataMR_SELE_1toCovid_keep=subset(dataMR_SELE_1toCovid, mr_keep==TRUE)
+dataMR_KELtoCovid_keep=subset(dataMR_KELtoCovid, mr_keep==TRUE)
+dataMR_SELE_2toCovid_keep=subset(dataMR_SELE_2toCovid, mr_keep==TRUE)
+dataMR_SELE_3toCovid_keep=subset(dataMR_SELE_3toCovid, mr_keep==TRUE)
+dataMR_ATP2A3toCovid_keep=subset(dataMR_ATP2A3toCovid, mr_keep==TRUE)
+dataMR_PECAM_1toCovid_keep=subset(dataMR_PECAM_1toCovid, mr_keep==TRUE)
+
+#******** #RREVIEWERS' COMMENTS ANALYSES *********
+
+## Get the F and I^2 statistics from our exposures
+#FAAH2
+#Rename required columns
+dataMR_FAAH2toCovid_keep$BetaXG<-dataMR_FAAH2toCovid_keep$beta.exposure
+dataMR_FAAH2toCovid_keep$seBetaXG<-dataMR_FAAH2toCovid_keep$se.exposure
+BetaXG   = dataMR_FAAH2toCovid_keep$BetaXG
+seBetaXG = dataMR_FAAH2toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+  
+#GCNT4
+#Rename required columns
+dataMR_GCNT4toCovid_keep$BetaXG<-dataMR_GCNT4toCovid_keep$beta.exposure
+dataMR_GCNT4toCovid_keep$seBetaXG<-dataMR_GCNT4toCovid_keep$se.exposure
+BetaXG   = dataMR_GCNT4toCovid_keep$BetaXG
+seBetaXG = dataMR_GCNT4toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#CD207
+#Rename required columns
+dataMR_CD207toCovid_keep$BetaXG<-dataMR_CD207toCovid_keep$beta.exposure
+dataMR_CD207toCovid_keep$seBetaXG<-dataMR_CD207toCovid_keep$se.exposure
+BetaXG   = dataMR_CD207toCovid_keep$BetaXG
+seBetaXG = dataMR_CD207toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#RAB14
+#Rename required columns
+dataMR_RAB14toCovid_keep$BetaXG<-dataMR_RAB14toCovid_keep$beta.exposure
+dataMR_RAB14toCovid_keep$seBetaXG<-dataMR_RAB14toCovid_keep$se.exposure
+BetaXG   = dataMR_RAB14toCovid_keep$BetaXG
+seBetaXG = dataMR_RAB14toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#C1GALT
+#Rename required columns
+dataMR_C1GALT1C1toCovid_keep$BetaXG<-dataMR_C1GALT1C1toCovid_keep$beta.exposure
+dataMR_C1GALT1C1toCovid_keep$seBetaXG<-dataMR_C1GALT1C1toCovid_keep$se.exposure
+BetaXG   = dataMR_C1GALT1C1toCovid_keep$BetaXG
+seBetaXG = dataMR_C1GALT1C1toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#ABO
+#Rename required columns
+dataMR_ABOtoCovid_keep$BetaXG<-dataMR_ABOtoCovid_keep$beta.exposure
+dataMR_ABOtoCovid_keep$seBetaXG<-dataMR_ABOtoCovid_keep$se.exposure
+BetaXG   = dataMR_ABOtoCovid_keep$BetaXG
+seBetaXG = dataMR_ABOtoCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#LCTL
+#Rename required columns
+dataMR_LCTLtoCovid_keep$BetaXG<-dataMR_LCTLtoCovid_keep$beta.exposure
+dataMR_LCTLtoCovid_keep$seBetaXG<-dataMR_LCTLtoCovid_keep$se.exposure
+BetaXG   = dataMR_LCTLtoCovid_keep$BetaXG
+seBetaXG = dataMR_LCTLtoCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#SFTPD
+#Rename required columns
+dataMR_SFTPDtoCovid_keep$BetaXG<-dataMR_SFTPDtoCovid_keep$beta.exposure
+dataMR_SFTPDtoCovid_keep$seBetaXG<-dataMR_SFTPDtoCovid_keep$se.exposure
+BetaXG   = dataMR_SFTPDtoCovid_keep$BetaXG
+seBetaXG = dataMR_SFTPDtoCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#SELL_Sun
+#Rename required columns
+dataMR_SELLtoCovid_keep$BetaXG<-dataMR_SELLtoCovid_keep$beta.exposure
+dataMR_SELLtoCovid_keep$seBetaXG<-dataMR_SELLtoCovid_keep$se.exposure
+BetaXG   = dataMR_SELLtoCovid_keep$BetaXG
+seBetaXG = dataMR_SELLtoCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#SELE_Folk
+#Rename required columns
+dataMR_SELE_1toCovid_keep$BetaXG<-dataMR_SELE_1toCovid_keep$beta.exposure
+dataMR_SELE_1toCovid_keep$seBetaXG<-dataMR_SELE_1toCovid_keep$se.exposure
+BetaXG   = dataMR_SELE_1toCovid_keep$BetaXG
+seBetaXG = dataMR_SELE_1toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#KEL_Sun
+#Rename required columns
+dataMR_KELtoCovid_keep$BetaXG<-dataMR_KELtoCovid_keep$beta.exposure
+dataMR_KELtoCovid_keep$seBetaXG<-dataMR_KELtoCovid_keep$se.exposure
+BetaXG   = dataMR_KELtoCovid_keep$BetaXG
+seBetaXG = dataMR_KELtoCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#SELE_Scal
+#Rename required columns
+dataMR_SELE_2toCovid_keep$BetaXG<-dataMR_SELE_2toCovid_keep$beta.exposure
+dataMR_SELE_2toCovid_keep$seBetaXG<-dataMR_SELE_2toCovid_keep$se.exposure
+BetaXG   = dataMR_SELE_2toCovid_keep$BetaXG
+seBetaXG = dataMR_SELE_2toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#SELE_Breth
+#Rename required columns
+dataMR_SELE_3toCovid_keep$BetaXG<-dataMR_SELE_3toCovid_keep$beta.exposure
+dataMR_SELE_3toCovid_keep$seBetaXG<-dataMR_SELE_3toCovid_keep$se.exposure
+BetaXG   = dataMR_SELE_3toCovid_keep$BetaXG
+seBetaXG = dataMR_SELE_3toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#ATP2A3
+#Rename required columns
+dataMR_ATP2A3toCovid_keep$BetaXG<-dataMR_ATP2A3toCovid_keep$beta.exposure
+dataMR_ATP2A3toCovid_keep$seBetaXG<-dataMR_ATP2A3toCovid_keep$se.exposure
+BetaXG   = dataMR_ATP2A3toCovid_keep$BetaXG
+seBetaXG = dataMR_ATP2A3toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+#********
+
+#PECAM1_Scal
+#Rename required columns
+dataMR_PECAM_1toCovid_keep$BetaXG<-dataMR_PECAM_1toCovid_keep$beta.exposure
+dataMR_PECAM_1toCovid_keep$seBetaXG<-dataMR_PECAM_1toCovid_keep$se.exposure
+BetaXG   = dataMR_PECAM_1toCovid_keep$BetaXG
+seBetaXG = dataMR_PECAM_1toCovid_keep$seBetaXG 
+
+BXG             = abs(BetaXG)         # gene--exposure estimates are positive  
+
+# Calculate F statistics
+# and I-squared statistics
+# to measure Instrument 
+# strength for MR-Egger
+
+F   = BXG^2/seBetaXG^2
+mF  = mean(F)
+
+#unweightedIsq
+unIsq = Isq(BXG,seBetaXG) #unweighted
+
+mF  # Want mF to be high for good IVW performance
+unIsq # Want Isq to be close to 1 for good MR-Egger performance
+
+
+
+# perform TwoSampleMR for all pairs
+MR_FAAH2toCovid_keep<- mr(dataMR_FAAH2toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_GCNT4toCovid_keep<- mr(dataMR_GCNT4toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_CD207toCovid_keep<- mr(dataMR_CD207toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_RAB14toCovid_keep<- mr(dataMR_RAB14toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_C1GALT1C1toCovid_keep<- mr(dataMR_C1GALT1C1toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_ABOtoCovid_keep<- mr(dataMR_ABOtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_LCTLtoCovid_keep<- mr(dataMR_LCTLtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_SFTPDtoCovid_keep<- mr(dataMR_SFTPDtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_SELLtoCovid_keep<- mr(dataMR_SELLtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_SELE_1toCovid_keep<- mr(dataMR_SELE_1toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_KELtoCovid_keep<- mr(dataMR_KELtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_SELE_2toCovid_keep<- mr(dataMR_SELE_2toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_SELE_3toCovid_keep<- mr(dataMR_SELE_3toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_ATP2A3toCovid_keep<- mr(dataMR_ATP2A3toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+MR_PECAM_1toCovid_keep<- mr(dataMR_PECAM_1toCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression","mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_weighted_mode"))
+
+
+# save to data frame
+Results_MR_FAAH2toCovid_keep=MR_FAAH2toCovid_keep # Saves the results in dataframe
+Results_MR_GCNT4toCovid_keep=MR_GCNT4toCovid_keep # Saves the results in dataframe
+Results_MR_CD207toCovid_keep=MR_CD207toCovid_keep # Saves the results in dataframe
+Results_MR_RAB14toCovid_keep=MR_RAB14toCovid_keep # Saves the results in dataframe
+Results_MR_C1GALT1C1toCovid_keep=MR_C1GALT1C1toCovid_keep # Saves the results in dataframe
+Results_MR_ABOtoCovid_keep=MR_ABOtoCovid_keep # Saves the results in dataframe
+Results_MR_LCTLtoCovid_keep=MR_LCTLtoCovid_keep # Saves the results in dataframe
+Results_MR_SFTPDtoCovid_keep=MR_SFTPDtoCovid_keep # Saves the results in dataframe
+Results_MR_SELLtoCovid_keep=MR_SELLtoCovid_keep # Saves the results in dataframe
+Results_MR_SELE_1toCovid_keep=MR_SELE_1toCovid_keep # Saves the results in dataframe
+Results_MR_KELtoCovid_keep=MR_KELtoCovid_keep # Saves the results in dataframe
+Results_MR_SELE_2toCovid_keep=MR_SELE_2toCovid_keep # Saves the results in dataframe
+Results_MR_SELE_3toCovid_keep=MR_SELE_3toCovid_keep # Saves the results in dataframe
+Results_MR_ATP2A3toCovid_keep=MR_ATP2A3toCovid_keep # Saves the results in dataframe
+Results_MR_PECAM_1toCovid_keep=MR_PECAM_1toCovid_keep # Saves the results in dataframe
+
+
+# plot
+MR_FAAH2toCovid_plot = mr_scatter_plot(Results_MR_FAAH2toCovid_keep, dataMR_FAAH2toCovid_keep)
+
+MR_GCNT4toCovid_plot = mr_scatter_plot(Results_MR_GCNT4toCovid_keep, dataMR_GCNT4toCovid_keep)
+
+MR_CD207toCovid_plot = mr_scatter_plot(Results_MR_CD207toCovid_keep, dataMR_CD207toCovid_keep)
+
+MR_RAB14toCovid_plot = mr_scatter_plot(Results_MR_RAB14toCovid_keep, dataMR_RAB14toCovid_keep)
+
+MR_C1GALT1C1toCovid_plot = mr_scatter_plot(Results_MR_C1GALT1C1toCovid_keep, dataMR_C1GALT1C1toCovid_keep)
+
+MR_ABOtoCovid_plot = mr_scatter_plot(Results_MR_ABOtoCovid_keep, dataMR_ABOtoCovid_keep)
+
+MR_LCTLtoCovid_plot = mr_scatter_plot(Results_MR_LCTLtoCovid_keep, dataMR_LCTLtoCovid_keep)
+
+MR_SFTPDtoCovid_plot = mr_scatter_plot(Results_MR_SFTPDtoCovid_keep, dataMR_SFTPDtoCovid_keep)
+
+MR_SELLtoCovid_plot = mr_scatter_plot(Results_MR_SELLtoCovid_keep, dataMR_SELLtoCovid_keep)
+
+MR_SELE_1toCovid_plot = mr_scatter_plot(Results_MR_SELE_1toCovid_keep, dataMR_SELE_1toCovid_keep)
+
+MR_KELtoCovid_plot = mr_scatter_plot(Results_MR_KELtoCovid_keep, dataMR_KELtoCovid_keep)
+
+MR_SELE_2toCovid_plot = mr_scatter_plot(Results_MR_SELE_2toCovid_keep, dataMR_SELE_2toCovid_keep)
+
+MR_SELE_3toCovid_plot = mr_scatter_plot(Results_MR_SELE_3toCovid_keep, dataMR_SELE_3toCovid_keep)
+
+MR_ATP2A3toCovid_plot = mr_scatter_plot(Results_MR_ATP2A3toCovid_keep, dataMR_ATP2A3toCovid_keep)
+
+MR_PECAM_1toCovid_plot = mr_scatter_plot(Results_MR_PECAM_1toCovid_keep, dataMR_PECAM_1toCovid_keep)
+
+```
+
+
+# Visualize all the results 
+```{r}
+kable(Results_MR_FAAH2toCovid_keep)
+kable(Results_MR_GCNT4toCovid_keep)
+kable(Results_MR_CD207toCovid_keep)
+kable(Results_MR_RAB14toCovid_keep)
+kable(Results_MR_C1GALT1C1toCovid_keep)
+kable(Results_MR_ABOtoCovid_keep)
+kable(Results_MR_LCTLtoCovid_keep)
+kable(Results_MR_SFTPDtoCovid_keep)
+kable(Results_MR_SELLtoCovid_keep)
+kable(Results_MR_SELE_1toCovid_keep)
+kable(Results_MR_KELtoCovid_keep)
+kable(Results_MR_SELE_2toCovid_keep)
+kable(Results_MR_SELE_3toCovid_keep)
+kable(Results_MR_ATP2A3toCovid_keep)
+kable(Results_MR_PECAM_1toCovid_keep)
+
+
+
+
+```
+
+# cis-effects 
+This is a carbon copy of the analyses above, but using cis-SNPs only
+```{r}
+
+setwd("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/cis/")
+
+
+ABO_snps  <- c("rs117322380",
+                "rs12683804",
+                "rs183853102",
+                "rs3124762",
+                "rs35775139",
+                "rs41297217",
+                "rs4489379",
+                "rs532861",
+                "rs55750924",
+                "rs62576042",
+                "rs62576573",
+                "rs671537",
+                "rs68032997",
+                "rs71503180",
+                "rs72779222",
+                "rs79918022",
+                "rs8176719")
+
+ABO_snps <- as.data.frame(ABO_snps)
+colnames(ABO_snps) <- c("SNP")
+
+SELE_snps  <- c("rs4656195",
+               "rs4656716")
+SELE_snps <- as.data.frame(SELE_snps)
+colnames(SELE_snps) <- c("SNP")
+
+SFTPD_snps <- c("rs112180825",
+                      "rs12256689",
+                      "rs12781934",
+                      "rs4433514",
+                      "rs7072971",
+                      "rs721917")
+SFTPD_snps <- as.data.frame(SFTPD_snps)
+colnames(SFTPD_snps) <- c("SNP")
+
+
+ABO <- fread("/scratch/groups/ukbiobank/sumstats/cleaned/blood_biomarkers/SUN0010.gz", verbose = T, data.table = F, fill=TRUE)
+ABO <-  inner_join(ABO_snps, ABO)
+
+SELE <- fread("/scratch/groups/ukbiobank/usr/alish/Project2_inflammatory_MR/markers/Scallop/SCAL62.gz", verbose = T, data.table = F, fill=TRUE)
+SELE <-  inner_join(SELE_snps, SELE)
+
+SFTPD <- fread("/scratch/groups/ukbiobank/usr/alish/Covid19/MR/B1_All/breth_mr/BRM181.gz", verbose = T, data.table = F, fill=TRUE)
+SFTPD <-  inner_join(SFTPD_snps, SFTPD)
+
+
+ABO <- ABO %>%
+  select(SNP, A1, A2, MAF, BETA, SE, P, N)
+
+SFTPD <- SFTPD %>%
+  select(SNP, A1, A2, MAF, BETA, SE, P, N)
+
+SELE <- SELE %>%
+  select(SNP, A1, A2, MAF, BETA, SE, P, N)
+
+write.table(ABO, "ABO", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SFTPD, "SFTPD", col.names=T, row.names=F, quote=F,sep = "\t")
+write.table(SELE, "SELE", col.names=T, row.names=F, quote=F,sep = "\t")
+
+exposure_ABO_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/ABO", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_ABO_dat$exposure="ABO"
+
+exposure_SFTPD_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SFTPD", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SFTPD_dat$exposure="SFTPD"
+
+exposure_SELE_dat <- read_exposure_data(
+  filename = "/mnt/lustre/groups/ukbiobank/Edinburgh_Data/usr/alish/Covid19/MR/B1_All/SELE", 
+  sep = "\t",                
+  snp_col = "SNP",          
+  beta_col = "BETA",         
+  se_col = "SE",        
+  effect_allele_col = "A1",  
+  other_allele_col = "A2",
+  eaf = "MAF",
+  samplesize_col = "N",
+  pval_col = "P") 
+exposure_SELE_dat$exposure="SELE"
+
+
+dataMR_ABOtoCovid <- harmonise_data(exposure_dat = exposure_ABO_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+dataMR_SFTPDtoCovid <- harmonise_data(exposure_dat = exposure_SFTPD_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+dataMR_SELEtoCovid <- harmonise_data(exposure_dat = exposure_SELE_dat, outcome_dat = outcome_Severe_Covid_dat, action=2)
+
+dataMR_ABOtoCovid_keep=subset(dataMR_ABOtoCovid, mr_keep==TRUE)
+dataMR_SFTPDtoCovid_keep=subset(dataMR_SFTPDtoCovid, mr_keep==TRUE)
+dataMR_SELEtoCovid_keep=subset(dataMR_SELEtoCovid, mr_keep==TRUE)
+
+MR_ABOtoCovid_keep<- mr(dataMR_ABOtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression", "mr_simple_median", "mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_simple_mode", "mr_weighted_mode"))
+MR_SFTPDtoCovid_keep<- mr(dataMR_SFTPDtoCovid_keep, method_list = c("mr_two_sample_ml", "mr_egger_regression", "mr_simple_median", "mr_weighted_median", "mr_ivw", "mr_ivw_radial", "mr_ivw_mre", "mr_ivw_fe", "mr_simple_mode", "mr_weighted_mode"))
+MR_SELEtoCovid_keep<- mr(dataMR_SELEtoCovid_keep)
+
+
+Results_MR_ABOtoCovid_keep=MR_ABOtoCovid_keep # Saves the results in dataframe
+Results_MR_SFTPDtoCovid_keep=MR_SFTPDtoCovid_keep # Saves the results in dataframe
+Results_MR_SELEtoCovid_keep=MR_SELEtoCovid_keep # Saves the results in dataframe
+
+MR_ABOtoCovid_plot = mr_scatter_plot(Results_MR_ABOtoCovid_keep, dataMR_ABOtoCovid_keep)
+MR_SFTPDtoCovid_plot = mr_scatter_plot(Results_MR_SFTPDtoCovid_keep, dataMR_SFTPDtoCovid_keep)
+MR_SELEtoCovid_plot = mr_scatter_plot(Results_MR_SELEtoCovid_keep, dataMR_SELEtoCovid_keep)
+
+kable(Results_MR_ABOtoCovid_keep)
+kable(Results_MR_SFTPDtoCovid_keep)
+kable(Results_MR_SELEtoCovid_keep)
+```
+
